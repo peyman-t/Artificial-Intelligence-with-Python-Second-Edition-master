@@ -20,7 +20,7 @@ net.trainf = nl.train.train_gd
 
 # 4. Train
 # Slide 6: Visualizing Gradient Descent hugging the curve [cite: 107, 117]
-error = net.train(x, y, epochs=2000, goal=0.01, show=100)
+error = net.train(x, y, epochs=4000, goal=0.01, show=100)
 
 # 5. Visualize
 prediction = net.sim(x)

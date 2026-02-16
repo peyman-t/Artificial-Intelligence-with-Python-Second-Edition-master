@@ -1,28 +1,21 @@
-"""
-Spaceship Landing with Deep Q-Network (DQN)
+"""DQN Agent for OpenAI Gym Environments
 ============================================
-Train an RL agent to land a spaceship on the moon using
-OpenAI Gym's LunarLander-v2 environment.
+Train a DQN agent on any Gym environment with discrete actions.
 
 The agent uses a Deep Q-Network (DQN) with:
   - Experience replay buffer
   - Target network for stable training
   - Epsilon-greedy exploration with decay
 
-Actions: 0 = do nothing, 1 = fire left engine,
-         2 = fire main engine, 3 = fire right engine
-
-Reward:  +100..+140 for landing on pad, -100 for crash,
-         each leg contact +10, firing main engine -0.3,
-         firing side engine -0.03.
-
 Requirements:
   pip install gym[box2d] torch numpy
 
 Usage:
-  python spaceship.py --train          # Train the agent
-  python spaceship.py --test           # Watch trained agent land
-  python spaceship.py --train --test   # Train then watch
+  python spaceship.py --train                           # Train on LunarLander (default)
+  python spaceship.py --train --env CartPole-v1         # Train on CartPole
+  python spaceship.py --train --env MountainCar-v0      # Train on MountainCar
+  python spaceship.py --test                            # Watch trained agent
+  python spaceship.py --train --test                    # Train then watch
 """
 
 import argparse
@@ -49,7 +42,11 @@ EPSILON_END     = 0.01      # Minimum exploration rate
 EPSILON_DECAY   = 0.995     # Decay rate per episode
 UPDATE_EVERY    = 4         # Learn every N steps
 SCRIPT_DIR      = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH      = os.path.join(SCRIPT_DIR, "spaceship_dqn.pth")
+
+def get_model_path(env_name):
+    """Return model save path based on environment name."""
+    safe_name = env_name.replace("-", "_").lower()
+    return os.path.join(SCRIPT_DIR, f"dqn_{safe_name}.pth")
 
 # ─── Experience tuple ──────────────────────────────────────────────
 Experience = namedtuple("Experience",
@@ -179,17 +176,18 @@ class DQNAgent:
 # ═══════════════════════════════════════════════════════════════════
 #  Training
 # ═══════════════════════════════════════════════════════════════════
-def train(agent, env):
-    """Train the DQN agent on the LunarLander environment."""
+def train(agent, env, env_name, num_episodes):
+    """Train the DQN agent on the given Gym environment."""
+    model_path = get_model_path(env_name)
     scores = []
     epsilon = EPSILON_START
     best_avg = -float('inf')
 
     print("=" * 60)
-    print("  Training Spaceship Landing Agent (DQN)")
+    print(f"  Training DQN Agent on {env_name}")
     print("=" * 60)
 
-    for episode in range(1, EPISODES + 1):
+    for episode in range(1, num_episodes + 1):
         state, _ = env.reset()
         score = 0
 
@@ -219,13 +217,13 @@ def train(agent, env):
         # Save best model
         if avg_score > best_avg and episode >= 100:
             best_avg = avg_score
-            agent.save(MODEL_PATH)
+            agent.save(model_path)
 
         # Solved! (average reward >= 200 over last 100 episodes)
         if avg_score >= 200.0 and episode >= 100:
             print(f"\n  *** SOLVED in {episode} episodes! "
                   f"Avg Score: {avg_score:.1f} ***\n")
-            agent.save(MODEL_PATH)
+            agent.save(model_path)
             break
 
     print("Training complete.\n")
@@ -235,12 +233,12 @@ def train(agent, env):
 # ═══════════════════════════════════════════════════════════════════
 #  Testing / Demonstration
 # ═══════════════════════════════════════════════════════════════════
-def test(agent, num_episodes=5):
-    """Watch the trained agent land the spaceship."""
-    env = gym.make("LunarLander-v2", render_mode="human")
+def test(agent, env_name, num_episodes=5):
+    """Watch the trained agent play the environment."""
+    env = gym.make(env_name, render_mode="human")
 
     print("=" * 60)
-    print("  Watching Trained Agent Land the Spaceship")
+    print(f"  Watching Trained Agent on {env_name}")
     print("=" * 60)
 
     for episode in range(1, num_episodes + 1):
@@ -255,8 +253,7 @@ def test(agent, num_episodes=5):
             if terminated or truncated:
                 break
 
-        status = "LANDED!" if score >= 200 else "CRASHED" if score < 0 else "OK"
-        print(f"  Episode {episode}: Score = {score:.1f}  [{status}]")
+        print(f"  Episode {episode}: Score = {score:.1f}")
 
     env.close()
     print("\nDemonstration complete.")
@@ -267,11 +264,13 @@ def test(agent, num_episodes=5):
 # ═══════════════════════════════════════════════════════════════════
 def build_arg_parser():
     parser = argparse.ArgumentParser(
-        description="Train a DQN agent to land a spaceship (LunarLander)")
+        description="Train a DQN agent on any Gym environment")
     parser.add_argument('--train', action='store_true',
                         help='Train the agent')
     parser.add_argument('--test', action='store_true',
                         help='Test/watch the trained agent')
+    parser.add_argument('--env', type=str, default='LunarLander-v2',
+                        help='Gym environment name (default: LunarLander-v2)')
     parser.add_argument('--episodes', type=int, default=EPISODES,
                         help=f'Number of training episodes (default: {EPISODES})')
     return parser
@@ -282,26 +281,36 @@ if __name__ == '__main__':
 
     if not args.train and not args.test:
         print("Please specify --train, --test, or both.")
-        print("Example: python spaceship.py --train --test")
+        print("Example: python spaceship.py --train --env CartPole-v1")
         exit(1)
 
+    env_name = args.env
+
+    # Auto-detect state and action sizes from the environment
+    temp_env = gym.make(env_name)
+    state_size  = temp_env.observation_space.shape[0]
+    action_size = temp_env.action_space.n
+    temp_env.close()
+
+    print(f"Environment: {env_name}")
+    print(f"State size:  {state_size}")
+    print(f"Action size: {action_size}\n")
+
     # Create agent
-    state_size  = 8   # LunarLander observation: [x, y, vx, vy, angle, angular_vel, left_leg, right_leg]
-    action_size = 4   # 0: noop, 1: left engine, 2: main engine, 3: right engine
     agent = DQNAgent(state_size, action_size)
+    model_path = get_model_path(env_name)
 
     # ── Train ──
     if args.train:
-        EPISODES = args.episodes
-        env = gym.make("LunarLander-v2")
-        scores = train(agent, env)
+        env = gym.make(env_name)
+        scores = train(agent, env, env_name, args.episodes)
         env.close()
 
     # ── Test ──
     if args.test:
-        if os.path.exists(MODEL_PATH):
-            agent.load(MODEL_PATH)
+        if os.path.exists(model_path):
+            agent.load(model_path)
         else:
-            print(f"Warning: No saved model found at {MODEL_PATH}")
+            print(f"Warning: No saved model found at {model_path}")
             print("Running with untrained agent.\n")
-        test(agent)
+        test(agent, env_name)

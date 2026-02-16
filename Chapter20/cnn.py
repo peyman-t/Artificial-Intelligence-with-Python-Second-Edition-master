@@ -17,6 +17,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 import numpy as np
+import matplotlib.pyplot as plt
 
 # ─── Load MNIST data ───────────────────────────────────────────────
 print("Loading MNIST data...")
@@ -81,4 +82,27 @@ model.fit(
 test_loss, test_accuracy = model.evaluate(x_test, y_test, verbose=0)
 print(f"\nTest accuracy = {test_accuracy:.4f}")
 
-# plot:
+# ─── Visualize Predictions ────────────────────────────────────────
+# Select 10 random test images
+indices = np.random.choice(len(x_test), 10, replace=False)
+x_sample = x_test[indices]
+y_sample_true = y_test[indices]
+
+# Predict
+print("\nGenerating predictions for visualization...")
+y_sample_pred = model.predict(x_sample)
+pred_labels = np.argmax(y_sample_pred, axis=1)
+true_labels = np.argmax(y_sample_true, axis=1)
+
+# Plot
+plt.figure(figsize=(15, 3))
+for i in range(10):
+    plt.subplot(1, 10, i + 1)
+    plt.imshow(x_sample[i].reshape(28, 28), cmap='gray')
+    color = 'green' if pred_labels[i] == true_labels[i] else 'red'
+    plt.title(f"Pred: {pred_labels[i]}\nTrue: {true_labels[i]}", color=color)
+    plt.axis('off')
+
+plt.suptitle("CNN Predictions on Random Test Samples")
+plt.tight_layout()
+plt.show()

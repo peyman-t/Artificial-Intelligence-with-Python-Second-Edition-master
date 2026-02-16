@@ -19,5 +19,5 @@ error = net.train(data, labels, epochs=500, goal=0.01)
 
 # 4. Interpretability Check
 # Slide 8: LVQ offers high interpretability [cite: 142]
-print("Class for [0.1, 0.1]:", net.sim([[0.1, 0.1]]))
+print("Class for [0.1, 0.1]:", net.sim([[0.3, 0.3]]))
 print("Class for [5.1, 5.1]:", net.sim([[5.1, 5.1]]))

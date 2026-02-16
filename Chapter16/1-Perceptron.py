@@ -17,3 +17,6 @@ error_progress = net.train(input_data, target_data, epochs=100, show=20, lr=0.1)
 
 # 4. Test
 print("Testing [1, 1]:", net.sim([[1, 1]])) # Should be close to 1
+print("Testing [0, 0]:", net.sim([[0, 0]])) # Should be close to 0
+print("Testing [0, 1]:", net.sim([[0, 1]])) # Should be close to 0
+print("Testing [1, 0]:", net.sim([[1, 0]])) # Should be close to 0
